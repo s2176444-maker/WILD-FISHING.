@@ -1,0 +1,48 @@
+
+name: Build WILD FISHING APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download project
+        uses: actions/checkout@v4
+
+      - name: Install Godot
+        uses: chickensoft-games/setup-godot@v1
+        with:
+          version: 4.3.0
+          use-dotnet: false
+
+      - name: Install Android export templates
+        run: |
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O templates.tpz
+          unzip -q templates.tpz -d templates
+          cp templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Import project
+        run: |
+          godot --headless --editor --path . --import
+
+      - name: Build APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/wild_fishing.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: WILD-FISHING-APK
+          path: build/wild_fishing.apk
