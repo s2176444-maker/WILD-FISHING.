@@ -854,3 +854,424 @@ func _load_game() -> void:
         bait_stock[i] = max(0, int(loaded_stock[i]))
     fish_bag = cfg.get_value("player","fish_bag",[])
     fish_count = int(cfg.get_value("player","fish_count",0))
+
+func _setup_player() -> void:
+	var player := CharacterBody3D.new()
+	player.name = "Player"
+	player.position = player_position
+	add_child(player)
+
+	var camera_pivot := Node3D.new()
+	camera_pivot.name = "CameraPivot"
+	player.add_child(camera_pivot)
+
+	var camera := Camera3D.new()
+	camera.name = "MainCamera"
+	camera.position = Vector3(0, 2.5, camera_distance)
+	camera.look_at(Vector3.ZERO)
+	camera_pivot.add_child(camera)
+
+func _setup_ui() -> void:
+	var canvas := CanvasLayer.new()
+	canvas.name = "GameUI"
+	add_child(canvas)
+
+	var background := ColorRect.new()
+	background.color = Color(0.02, 0.05, 0.08, 0.45)
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	canvas.add_child(background)
+
+	var main := VBoxContainer.new()
+	main.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	main.position = Vector2(20, 20)
+	main.custom_minimum_size = Vector2(300, 160)
+	canvas.add_child(main)
+
+	money_label = Label.new()
+	money_label.add_theme_font_size_override("font_size", 24)
+	main.add_child(money_label)
+
+	hud_label = Label.new()
+	hud_label.add_theme_font_size_override("font_size", 18)
+	main.add_child(hud_label)
+
+	status_label = Label.new()
+	status_label.add_theme_font_size_override("font_size", 20)
+	status_label.text = "Добро пожаловать на рыбалку!"
+	main.add_child(status_label)
+
+	var buttons := GridContainer.new()
+	buttons.columns = 2
+	buttons.add_theme_constant_override("h_separation", 10)
+	buttons.add_theme_constant_override("v_separation", 10)
+	buttons.position = Vector2(20, 220)
+	buttons.custom_minimum_size = Vector2(320, 300)
+	canvas.add_child(buttons)
+
+	_add_button(buttons, "Забросить", _cast_line)
+	_add_button(buttons, "Подсечь", _hook_fish)
+	_add_button(buttons, "Подмотать", _reel_fish)
+	_add_button(buttons, "Камера", _change_camera)
+	_add_button(buttons, "Магазин", _open_shop)
+	_add_button(buttons, "Продать улов", _sell_fish)
+	_add_button(buttons, "Садок", _open_keepnet)
+	_add_button(buttons, "Журнал", _open_fish_journal)
+	_add_button(buttons, "Эхолот", _use_sonar)
+	_add_button(buttons, "Погода", _change_weather)
+	_add_button(buttons, "Локация", _change_region)
+	_add_button(buttons, "Сохранить", _save_game)
+
+	var hint := Label.new()
+	hint.text = "Проводи пальцем по экрану, чтобы вращать камеру"
+	hint.position = Vector2(20, 580)
+	hint.add_theme_font_size_override("font_size", 16)
+	canvas.add_child(hint)
+
+func _add_button(parent: Control, text_value: String, callback: Callable) -> void:
+	var button := Button.new()
+	button.text = text_value
+	button.custom_minimum_size = Vector2(145, 55)
+	button.add_theme_font_size_override("font_size", 17)
+
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = Color(0.08, 0.22, 0.30, 0.95)
+	normal.set_corner_radius_all(12)
+	normal.set_border_width_all(2)
+	normal.border_color = Color(0.2, 0.65, 0.75)
+
+	var hover := StyleBoxFlat.new()
+	hover.bg_color = Color(0.12, 0.38, 0.48, 1.0)
+	hover.set_corner_radius_all(12)
+
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", hover)
+	button.pressed.connect(callback)
+	parent.add_child(button)
+
+func _update_player(delta: float) -> void:
+	pass
+
+func _update_camera() -> void:
+	var player := get_node_or_null("Player")
+	if player == null:
+		return
+
+	var pivot := player.get_node_or_null("CameraPivot")
+	if pivot == null:
+		return
+
+	pivot.rotation.y = camera_rotation.x
+	pivot.rotation.x = camera_rotation.y
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenDrag:
+		camera_rotation.x -= event.relative.x * 0.004
+		camera_rotation.y -= event.relative.y * 0.004
+		camera_rotation.y = clampf(camera_rotation.y, -0.8, 0.8)
+
+func _update_fishing(delta: float) -> void:
+	if is_waiting:
+		bite_timer -= delta
+		if bite_timer <= 0.0:
+			is_waiting = false
+			fish_biting = true
+			status_label.text = "ПОКЛЁВКА! Нажми «Подсечь»!"
+
+	if fish_fighting:
+		fight_timer -= delta
+		if fight_timer <= 0.0:
+			_finish_fight()
+
+func _cast_line() -> void:
+	if is_casting or is_waiting or fish_fighting:
+		status_label.text = "Сначала закончи текущую рыбалку"
+		return
+
+	is_casting = true
+	is_waiting = true
+	fish_biting = false
+	bite_timer = randf_range(5.0, 14.0)
+	status_label.text = "Поплавок на воде. Ждём поклёвку..."
+
+func _hook_fish() -> void:
+	if not fish_biting:
+		status_label.text = "Пока нет поклёвки"
+		return
+
+	fish_biting = false
+	is_casting = false
+	is_waiting = false
+	fish_fighting = true
+	fight_timer = randf_range(3.0, 8.0)
+
+	var fish: Dictionary = fish_species.pick_random()
+	caught_fish_name = str(fish["name"])
+	caught_fish_weight = randf_range(0.2, float(fish["weight"]) * 1.8)
+	caught_fish_length = caught_fish_weight * randf_range(2.0, 4.0)
+
+	status_label.text = "На крючке: " + caught_fish_name + "! Вываживай!"
+
+func _reel_fish() -> void:
+	if fish_fighting:
+		fight_timer -= 2.0
+		status_label.text = "Подматываем леску..."
+
+func _finish_fight() -> void:
+	fish_fighting = false
+	is_casting = false
+
+	var record := {
+		"name": caught_fish_name,
+		"weight": caught_fish_weight,
+		"length": caught_fish_length,
+		"date": Time.get_datetime_string_from_system()
+	}
+
+	fish_bag.append(record)
+	status_label.text = "Пойман " + caught_fish_name + "! Он в садке."
+	_update_hud()
+	_save_game()
+
+func _change_camera() -> void:
+	current_camera = 1 - current_camera
+	var camera := get_node_or_null("Player/CameraPivot/MainCamera") as Camera3D
+	if camera != null:
+		camera.position = Vector3(0, 1.7, 0) if current_camera == 1 else Vector3(0, 2.5, camera_distance)
+		camera.look_at(Vector3(0, 0, -1))
+	status_label.text = "Режим камеры изменён"
+
+func _change_weather() -> void:
+	current_weather = weather_types.pick_random()
+	status_label.text = "Погода: " + current_weather
+	_update_hud()
+
+func _change_region() -> void:
+	current_region = (current_region + 1) % regions.size()
+	status_label.text = "Локация: " + regions[current_region]
+	_update_hud()
+
+func _use_sonar() -> void:
+	status_label.text = "Эхолот: рыба обнаруживается под водой"
+
+func _open_shop() -> void:
+	var panel := _show_message_panel("МАГАЗИН")
+	_add_panel_label(panel, "Удочки, леска, наживки и снасти")
+	_add_panel_button(panel, "Купить наживку — 30 ₽", func():
+		if money >= 30:
+			money -= 30
+			inventory.append({"name": "Наживка", "count": 1})
+			status_label.text = "Наживка куплена"
+		else:
+			status_label.text = "Недостаточно денег"
+		_update_hud()
+	)
+	_add_panel_button(panel, "Закрыть", func(): panel.queue_free())
+
+func _open_keepnet() -> void:
+	_show_catch_log(false)
+
+func _open_fish_journal() -> void:
+	_show_catch_log(true)
+
+func _show_catch_log(show_journal: bool) -> void:
+	var panel := _show_message_panel("ЖУРНАЛ РЫБАЛКИ" if show_journal else "САДОК")
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(400, 280)
+	panel.add_child(scroll)
+
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	var fish_list: Array[Dictionary] = fish_journal if show_journal else fish_bag
+
+	if fish_list.is_empty():
+		var empty_label := Label.new()
+		empty_label.text = "Пока здесь пусто"
+		list.add_child(empty_label)
+
+	for i in range(fish_list.size()):
+		var fish: Dictionary = fish_list[i]
+		var row := HBoxContainer.new()
+		list.add_child(row)
+
+		var info := Label.new()
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.text = "%s — %.2f кг — %.1f см" % [
+			str(fish.get("name", "Рыба")),
+			float(fish.get("weight", 0.0)),
+			float(fish.get("length", 0.0))
+		]
+		row.add_child(info)
+
+		if not show_journal:
+			var save_button := Button.new()
+			save_button.text = "В журнал"
+			save_button.pressed.connect(_add_to_journal.bind(i, panel))
+			row.add_child(save_button)
+
+	if not show_journal:
+		var sell_button := Button.new()
+		sell_button.text = "Продать весь садок"
+		sell_button.pressed.connect(func():
+			_sell_fish()
+			panel.queue_free()
+		)
+		panel.add_child(sell_button)
+
+	var close_button := Button.new()
+	close_button.text = "Закрыть"
+	close_button.pressed.connect(func(): panel.queue_free())
+	panel.add_child(close_button)
+
+func _add_to_journal(index: int, panel: Control) -> void:
+	if index < 0 or index >= fish_bag.size():
+		return
+
+	var fish: Dictionary = fish_bag[index]
+	fish_journal.append(fish.duplicate(true))
+	fish_bag.remove_at(index)
+
+	status_label.text = "Трофей сохранён в журнале. Продать его нельзя."
+	_update_hud()
+	_save_game()
+	panel.queue_free()
+	_open_fish_journal()
+
+func _sell_fish() -> void:
+	if fish_bag.is_empty():
+		status_label.text = "Садок пуст"
+		return
+
+	var total := 0
+	for fish in fish_bag:
+		var fish_name := str(fish.get("name", ""))
+		for species in fish_species:
+			if str(species["name"]) == fish_name:
+				total += int(float(species["price"]) * float(fish.get("weight", 1.0)))
+				break
+
+	money += total
+	fish_bag.clear()
+	status_label.text = "Улов продан за %d ₽" % total
+	_update_hud()
+	_save_game()
+
+func _show_message_panel(title_text: String) -> Panel:
+	var canvas := get_node_or_null("GameUI") as CanvasLayer
+	var panel := Panel.new()
+	panel.name = "PopupPanel"
+	panel.custom_minimum_size = Vector2(450, 350)
+	panel.position = Vector2(250, 80)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.025, 0.07, 0.11, 0.98)
+	style.set_corner_radius_all(18)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.15, 0.65, 0.8)
+	panel.add_theme_stylebox_override("panel", style)
+
+	if canvas != null:
+		canvas.add_child(panel)
+
+	var content := VBoxContainer.new()
+	content.position = Vector2(16, 12)
+	content.size = Vector2(410, 320)
+	panel.add_child(content)
+
+	var heading := Label.new()
+	heading.text = title_text
+	heading.add_theme_font_size_override("font_size", 24)
+	content.add_child(heading)
+
+	return panel
+
+func _add_panel_label(panel: Panel, text_value: String) -> void:
+	var content := panel.get_child(0) as VBoxContainer
+	if content == null:
+		return
+
+	var label := Label.new()
+	label.text = text_value
+	label.add_theme_font_size_override("font_size", 18)
+	content.add_child(label)
+
+func _add_panel_button(panel: Panel, text_value: String, callback: Callable) -> void:
+	var content := panel.get_child(0) as VBoxContainer
+	if content == null:
+		return
+
+	var button := Button.new()
+	button.text = text_value
+	button.custom_minimum_size = Vector2(200, 48)
+	button.pressed.connect(callback)
+	content.add_child(button)
+
+func _update_hud() -> void:
+	if money_label != null:
+		money_label.text = "Деньги: %d ₽" % money
+
+	if hud_label != null:
+		hud_label.text = "Локация: %s | Погода: %s\nСадок: %d | Трофеи: %d" % [
+			regions[current_region],
+			current_weather,
+			fish_bag.size(),
+			fish_journal.size()
+		]
+
+func _save_game() -> void:
+	var config := ConfigFile.new()
+
+	config.set_value("player", "money", money)
+	config.set_value("player", "region", current_region)
+	config.set_value("player", "weather", current_weather)
+
+	config.set_value("fish", "keepnet", fish_bag)
+	config.set_value("fish", "journal", fish_journal)
+	config.set_value("inventory", "items", inventory)
+
+	var error := config.save(SAVE_PATH)
+	if error == OK:
+		status_label.text = "Игра сохранена"
+	else:
+		status_label.text = "Ошибка сохранения"
+
+func _load_game() -> void:
+	var config := ConfigFile.new()
+	var error := config.load(SAVE_PATH)
+
+	if error != OK:
+		return
+
+	money = int(config.get_value("player", "money", 350))
+	current_region = int(config.get_value("player", "region", 0))
+	current_region = clampi(current_region, 0, regions.size() - 1)
+
+	current_weather = str(config.get_value("player", "weather", "Солнечно"))
+
+	fish_bag.clear()
+	fish_journal.clear()
+	inventory.clear()
+
+	var saved_keepnet = config.get_value("fish", "keepnet", [])
+	var saved_journal = config.get_value("fish", "journal", [])
+	var saved_inventory = config.get_value("inventory", "items", [])
+
+	for fish in saved_keepnet:
+		if fish is Dictionary:
+			fish_bag.append(fish)
+
+	for fish in saved_journal:
+		if fish is Dictionary:
+			fish_journal.append(fish)
+
+	for item in saved_inventory:
+		if item is Dictionary:
+			inventory.append(item)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_game()
+		get_tree().quit()
