@@ -192,7 +192,7 @@ func _build_world() -> void:
     _make_box("Footpath", Vector3(1,0.02,6), Vector3(14,0.06,1.6), Color(0.48,0.39,0.25))
     _make_box("Campfire stones", Vector3(-12,0.12,11), Vector3(1.6,0.25,1.6), Color(0.25,0.24,0.20))
     
-    world_root.add_child(lantern)
+
     # Distinctive objects for the three fishing zones.
     var rock_marker := _make_box("Rocky shore marker", Vector3(22,1.1,-17), Vector3(3,2.2,2.5), Color(0.35,0.36,0.34))
     var reed_marker := _make_box("Reed shore marker", Vector3(-20,1.0,-17), Vector3(4,2,1.2), Color(0.42,0.48,0.18))
