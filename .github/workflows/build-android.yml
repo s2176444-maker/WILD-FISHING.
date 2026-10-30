@@ -1,3 +1,4 @@
+
 name: Build WILD FISHING APK
 
 on:
@@ -34,15 +35,7 @@ jobs:
           unzip -q templates.tpz -d templates
           cp templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
 
-            - name: Configure Godot Android SDK paths
-        run: |
-          mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-4.tres <<EOF
-          [gd_resource type="EditorSettings" format=3]
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_HOME"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          EOF- name: Setup Android SDK
+      - name: Setup Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: ''
@@ -50,6 +43,16 @@ jobs:
       - name: Install Android SDK packages
         run: |
           sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0" "cmake;3.10.2.4988404" "ndk;23.2.8568313"
+
+      - name: Configure Godot Android SDK paths
+        run: |
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
 
       - name: Create Android export preset
         run: |
