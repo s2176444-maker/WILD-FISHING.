@@ -284,7 +284,7 @@ func _apply_weather(show_message: bool) -> void:
     if weather_label:
         weather_label.text = "Погода: " + weather_name
 
-\nfunc _build_player() -> void:
+func _build_player() -> void:
     player = CharacterBody3D.new()
     player.position = Vector3(0,1,5)
     add_child(player)
