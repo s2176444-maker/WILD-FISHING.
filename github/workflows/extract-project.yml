@@ -1,0 +1,28 @@
+
+name: Extract Godot project
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract project
+        run: |
+          set -e
+          mkdir -p /tmp/wild
+          unzip -q WILD_FISHING_Release_Candidate_v4.zip -d /tmp/wild
+          project=$(find /tmp/wild -name project.godot -print -quit)
+          test -n "$project"
+          cp -a "$(dirname "$project")"/. .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Extract Godot project"
+          git push
