@@ -191,11 +191,7 @@ func _build_world() -> void:
     _make_box("Shop sign", Vector3(8,2.0,2.9), Vector3(2.8,0.7,0.15), Color(0.12,0.22,0.16))
     _make_box("Footpath", Vector3(1,0.02,6), Vector3(14,0.06,1.6), Color(0.48,0.39,0.25))
     _make_box("Campfire stones", Vector3(-12,0.12,11), Vector3(1.6,0.25,1.6), Color(0.25,0.24,0.20))
-    var lantern := OmniLight3D.new()
-    lantern.position = Vector3(8,2.5,2.6)
-    lantern.light_color = Color(1.0,0.68,0.34)
-    lantern.light_energy = 0.7
-    lantern.omni_range = 8
+    
     world_root.add_child(lantern)
     # Distinctive objects for the three fishing zones.
     var rock_marker := _make_box("Rocky shore marker", Vector3(22,1.1,-17), Vector3(3,2.2,2.5), Color(0.35,0.36,0.34))
