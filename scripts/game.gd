@@ -601,7 +601,7 @@ func _hook_fish() -> void:
         return
     var bait_bonus: float = baits[selected_bait].bonus
     var hook_quality: float = hooks[selected_hook].quality
-    var odds := clamp(0.52 + (hook_quality - 1.0) * 0.28 + (bait_bonus - 1.0) * 0.24, 0.35, 0.94)
+    var odds: float= clampf(0.52 + (hook_quality - 1.0) * 0.28 + (bait_bonus - 1.0) * 0.24, 0.35, 0.94)
     if randf() > odds:
         fishing_state = "idle"
         _set_status("Неудачная подсечка. В следующий раз реагируй точнее.")
